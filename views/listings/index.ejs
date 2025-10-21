@@ -1,0 +1,182 @@
+<% layout("/layouts/boilerplate") %>
+
+<style>
+  #filters {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .filter {
+    text-align: center;
+    margin-right: 1rem;
+    margin-top: 2rem;
+    opacity: 0.7;
+    padding: 10px;
+  }
+  .filter:hover {
+    opacity: 1;
+    cursor: pointer;
+  }
+  .active-filter {
+    border-bottom: 2px solid black;
+  }
+  .tax-info {
+    display: none;
+  }
+  .tax-switch-container {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+  }
+  @media (max-width: 768px) {
+    #filters {
+      display: none;
+    }
+  }
+</style>
+
+<% let categories = [
+  { name: "Trending", icon: "fa-fire" },
+  { name: "Rooms", icon: "fa-bed" },
+  { name: "Mountains", icon: "fa-mountain" },
+  { name: "Castles", icon: "fa-fort-awesome" },
+  { name: "Beaches", icon: "fa-umbrella-beach" },
+  { name: "Pools", icon: "fa-person-swimming" },
+  { name: "Camping", icon: "fa-campground" },
+  { name: "Villas", icon: "fa-house-chimney" },
+  { name: "Farms", icon: "fa-tractor" },
+  { name: "Lakes", icon: "fa-water" }
+]; %>
+
+<!-- ✅ Dropdown for Small Screens -->
+<div class="container mt-3 d-md-none">
+  <div class="dropdown">
+    <button class="btn btn-secondary dropdown-toggle" type="button" id="categoryDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+      Select Category
+    </button>
+    <ul class="dropdown-menu" aria-labelledby="categoryDropdown">
+      <li>
+        <a class="dropdown-item <%= !selectedCategory ? 'active' : '' %>" href="/listings">All Listings</a>
+      </li>
+      <% for (let category of categories) { %>
+        <li>
+          <a class="dropdown-item <%= category.name === selectedCategory ? 'active' : '' %>" href="/listings?category=<%= category.name %>">
+            <i class="fa-solid <%= category.icon %>"></i> <%= category.name %>
+          </a>
+        </li>
+      <% } %>
+    </ul>
+  </div>
+</div>
+
+<!-- ✅ Filter Section for Large Screens -->
+<div id="filters" class="d-none d-md-flex">
+  <div class="filter <%= !selectedCategory ? 'active-filter' : '' %>">
+    <a href="/listings" style="text-decoration: none; color: inherit;">
+      <div><i class="fa-solid fa-globe"></i></div>
+      <p>All Listings</p>
+    </a>
+  </div>
+  <% for (let category of categories) { %>
+    <div class="filter <%= category.name === selectedCategory ? 'active-filter' : '' %>">
+      <a href="/listings?category=<%= category.name %>" style="text-decoration: none; color: inherit;">
+        <div><i class="fa-solid <%= category.icon %>"></i></div>
+        <p><%= category.name %></p>
+      </a>
+    </div>
+  <% } %>
+</div>
+
+<!-- ✅ Search Form -->
+<form class="d-flex mt-3" action="/listings/search" method="GET">
+  <input
+    class="form-control me-2"
+    type="search"
+    name="q"
+    placeholder="Search by title or location"
+    aria-label="Search"
+    value="<%= typeof searchQuery !== 'undefined' ? searchQuery : '' %>"
+  />
+  <button class="btn btn-outline-success" type="submit">Search</button>
+</form>
+
+<!-- ✅ Listings Section -->
+<div class="row row-cols-lg-3 row-cols-md-3 row-cols-sm-1 mt-3">
+  <% if (allListings.length === 0) { %>
+    <h3>No Listings Found</h3>
+  <% } else { %>
+    <% for (let listing of allListings) { %>
+      <div class="card listing-card position-relative mb-4">
+        <img src="<%= listing.image.url %>" class="card-img-top" alt="listing-img" height="300rem">
+        <div class="card-body">
+          <p class="card-text"><b><%= listing.title %></b> <br>
+            &#8377;<%= listing.price %>/night
+            <i class="tax-info"> &nbsp; &nbsp;+18% GST</i>
+          </p>
+
+          <a href="/listings/<%= listing._id %>" class="btn btn-primary me-2">Explore More</a>
+
+          <button class="btn btn-success" onclick="toggleBookingForm('<%= listing._id %>')">Book Now</button>
+
+          <!-- Inline Booking Form -->
+          <form action="/bookings/<%= listing._id %>" method="POST" class="mt-3 booking-form" id="form-<%= listing._id %>" style="display: none;">
+            <div class="mb-2">
+              <label for="checkIn-<%= listing._id %>">Check-in:</label>
+              <input type="date" name="checkIn" id="checkIn-<%= listing._id %>" class="form-control" required>
+            </div>
+            <div class="mb-2">
+              <label for="checkOut-<%= listing._id %>">Check-out:</label>
+              <input type="date" name="checkOut" id="checkOut-<%= listing._id %>" class="form-control" required>
+            </div>
+            <div class="mb-3">
+              <label for="guests-<%= listing._id %>">Guests:</label>
+              <input type="number" name="guests" id="guests-<%= listing._id %>" min="1" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-dark">Confirm Booking</button>
+          </form>
+        </div>
+      </div>
+    <% } %>
+  <% } %>
+</div>
+
+<!-- ✅ Script Section -->
+<script>
+  function toggleBookingForm(id) {
+    const form = document.getElementById(`form-${id}`);
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    let taxSwitch = document.getElementById("taxSwitch");
+    let taxInfo = document.querySelectorAll(".tax-info");
+
+    let urlParams = new URLSearchParams(window.location.search);
+    let selectedCategory = urlParams.get("category");
+
+    if (!selectedCategory || selectedCategory === "All") {
+      document.querySelector(".tax-switch-container")?.style.display = "block";
+    } else {
+      document.querySelector(".tax-switch-container")?.style.display = "none";
+    }
+
+    taxSwitch?.addEventListener("change", () => {
+      taxInfo.forEach(info => {
+        info.style.display = taxSwitch.checked ? "inline" : "none";
+      });
+    });
+
+    let dropdownItems = document.querySelectorAll(".dropdown-item");
+    dropdownItems.forEach(item => {
+      if (item.innerText.trim() === selectedCategory) {
+        item.classList.add("active");
+      }
+    });
+
+    let filters = document.querySelectorAll(".filter");
+    filters.forEach(filter => {
+      if (filter.innerText.trim() === selectedCategory) {
+        filter.classList.add("active-filter");
+      }
+    });
+  });
+</script>
